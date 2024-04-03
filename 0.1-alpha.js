@@ -1,7 +1,7 @@
 // ©2024 DPacks Technology - All Rights Reserved
 
 const pageId = document.getElementsByTagName("body")[0].id;
-const API_URL = 'https://dpacks-nightly-server.herokuapp.com';
+const API_URL = backend_domain;
 
 // Login view
 const hash = window.location.hash.substr(1);
