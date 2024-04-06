@@ -7,22 +7,84 @@ const API_URL = backend_domain;
 const hash = window.location.hash.substr(1);
 const user = JSON.parse(localStorage.getItem('user'));
 
-// -- class checker --
-let file_path = document.getElementById("dpack_admin_script").src;
-let the_arr = file_path.split('/');
-the_arr.pop();
-const base_url = the_arr.join('/');
+// dpacks key
+console.log("dpacks: " + dpacks_key);
 
 if (user && user.accessToken) {
     console.log("dpacks: Admin protocol activated");
     admin();
+} else {
+    read();
 }
 
+// read function
+function read() {
+
+    // let tagsList = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'div', 'b', 'strong', 'i', 'em', 'mark', 'small', 'del', 'ins', 'sub', 'sup'];
+    let tagsList = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span'];
+    const jsonData = document.querySelectorAll(tagsList);
+    for (let i = 0; i < jsonData.length; i++) {
+
+        // -- id declaration --
+        let id = jsonData[i].id;
+
+        axios.get(API_URL + '/api/v1/data-packets/check', {
+                headers: {
+                    siteId: dpacks_key,
+                    page: pageId,
+                    element: id
+                }
+            }
+        ).then(function (response) {
+            if (response.data.exists === 1) {
+                fetch('https://data.testcod.top/dpacks-3e038.appspot.com/' + dpacks_key + '_' + pageId + '_' + id + '.json')
+                    .then(function (response) {
+                        return response.json();
+                    })
+                    .then(function (data) {
+                        appendData(data);
+                    })
+                    .catch(function (err) {
+                        console.log('error: ' + err);
+                    });
+            }
+        }).catch(function (error) {
+            console.log(error);
+        });
+
+        // -- append data from data files (view fetch) - function --
+        function appendData(data) {
+
+            // -- main container --
+            let mainContainer = document.getElementById(id);
+
+            // -- text --
+            mainContainer.innerText = data.text;
+
+            // -- attributes --
+            let atrArray = data.attributes;
+
+            if (atrArray.length !== {}) {
+                Object.keys(atrArray).forEach(key => {
+                    mainContainer.removeAttribute(key);
+                    mainContainer.setAttribute(key, atrArray[key]);
+                });
+            }
+
+        }
+    }
+}
+
+// DPacks onsite login
 if (hash === "dpacks") {
     if (user && user.accessToken) {
+
+        // if user is already logged in
         window.location.href = window.location.href.split('#')[0];
+
     } else {
-        console.log("login");
+
+        // if user is not logged in
         let login_div = document.createElement("div");
         login_div.setAttribute("class", "dpacks_login")
         login_div.innerHTML =
@@ -51,11 +113,11 @@ if (hash === "dpacks") {
             '</div>' +
             '</div>';
         document.getElementsByTagName("body")[0].after(login_div);
+
     }
 }
 
-console.log("dpacks: " + dpacks_key);
-
+// autherization header
 function authHeader() {
     if (user && user.accessToken) {
         return {siteId: dpacks_key, Authorization: 'Bearer ' + user.accessToken}; // for Spring Boot back-end
@@ -65,6 +127,7 @@ function authHeader() {
     }
 }
 
+// login function
 function dpacksLogin() {
     document.getElementById("dpacks-login-bad-credentials").style.display = "none";
     document.getElementById("dpacks-login-btn").innerText = "Loading...";
@@ -91,6 +154,7 @@ function dpacksLogin() {
         });
 }
 
+// logout function
 function dpacksLogOut() {
     localStorage.removeItem("user");
     if (window.location.href.slice(-1) === '/') {
@@ -101,7 +165,7 @@ function dpacksLogOut() {
 }
 
 
-// -- data edit saving ajax (update json file) --
+// save function
 function jsave(id) {
     document.getElementById("dpacks-admin-status").innerText = "SAVING...";
     axios.put(API_URL + '/api/v1/data-packets/', {
@@ -121,6 +185,7 @@ function jsave(id) {
     });
 }
 
+// save all function
 async function allJSave() {
     document.getElementById("dpacks-admin-status").innerText = "SAVING...";
     // -- edit save inner text
@@ -383,11 +448,10 @@ function attrSave(id) {
 // admin view
 function admin() {
 
-
     // dPacks navbar
     //document.getElementsByTagName("html")[0].style.setProperty('margin-top', 40 + 'px', 'important');
 
-// menu element
+    // menu element
     let header_ele = document.getElementsByTagName("body")[0];
     let div = document.createElement("div");
     div.setAttribute("id", "dpacks-nightly-settings-nav");
@@ -396,7 +460,6 @@ function admin() {
 
     div.innerHTML =
         '<div class=\"dpacks_nav_content con-mid\">' +
-        '<a class=\"dpacks_nav_content_a con-mid\" href=\"https://gitcoin.co/tip?username=sathninduk\">💰</a>' +
         '<a class=\"dpacks_nav_content_a con-mid\" href=\"\" onclick=\"allJSave()\">💾</a>' +
         '<a class=\"dpacks_nav_content_a con-mid\" href=\"https://dpacks.space/login\">🛠</a>' +
         '<a class=\"dpacks_nav_content_a con-mid\" onclick=\"hiddenElementsList()\" href=\"\">🙈</a>' +
@@ -456,12 +519,8 @@ function admin() {
                         }
                     }
                 ).then(function (response) {
-
-                    console.log(response.data.exists);
-
                     if (response.data.exists === 0) {
-                        // 404
-                        // -- create json file --
+                        // create data packet
                         async function createJSON() {
 
                             let formDataTest = {
@@ -505,89 +564,94 @@ function admin() {
 
                     } else {
 
-
-                        // axios.get('https://data.testcod.top/dpacks-3e038.appspot.com/' + dpacks_key + '_' + pageId + '_' + id + '.json', {}).then(function (response) {
-                        //     console.log(response);
-                        // }).catch(function (error) {
-                        //     // console.log(error);
-                        // }).then(function () {
-                        //     }
-                        // )
+                        fetch('https://data.testcod.top/dpacks-3e038.appspot.com/' + dpacks_key + '_' + pageId + '_' + id + '.json')
+                            .then(response => {
+                                if (!response.ok) {
+                                    throw new Error("HTTP error " + response.status);
+                                }
+                                return response.json();
+                            })
+                            .then(json => {
+                                appendData(json);
+                            })
+                            .catch(e => {
+                                console.log('error: ' + e);
+                            })
 
                         // -- check if data file exists --
-                        let xhr = new XMLHttpRequest();
-                        xhr.responseType = 'json';
-                        xhr.open('GET', 'https://data.testcod.top/dpacks-3e038.appspot.com/' + dpacks_key + '_' + pageId + '_' + id + '.json');
-                        xhr.send();
-                        xhr.onload = function (e) {
-                            if (xhr.readyState === 4) {
-                                if (xhr.status === 400 || xhr.status === 404) {
-                                    // 404
-                                    // -- create json file --
-                                    async function createJSON() {
-
-                                        let formDataTest = {
-                                            id: id,
-                                            page: pageId,
-                                            text: curr_text,
-                                            attrKey: [],
-                                            attrValue: []
-                                        }
-
-                                        for (let att, j = 0, atts = jsonData[i].attributes, n = atts.length; j < n; j++) {
-                                            att = atts[j];
-                                            if (att.nodeName !== "id") {
-                                                formDataTest.attrKey.push(att.nodeName);
-                                                formDataTest.attrValue.push(att.nodeValue);
-                                            }
-                                        }
-
-                                        axios.post(API_URL + '/api/v1/json',
-                                            formDataTest, {
-                                                headers: authHeader()
-                                            }
-                                        )
-                                            .then(function (response) {
-                                                console.log(response);
-                                            })
-                                            .catch(function (error) {
-                                                console.log(error);
-                                            });
-                                    }
-
-                                    createJSON().then(async r => {
-                                        //await location.reload();
-                                        console.log(r);
-                                    }).catch(error => {
-                                        console.log(error);
-                                    });
-
-                                } else if (xhr.status === 200) {
-                                    // 200
-                                    // append data to webpage
-
-                                    //axios.get(base_url + '/b2/' + dpacks_key + '_' + pageId + '_' + id + '.json')
-                                    //fetch(base_url + '/b2/' + dpacks_key + '_' + pageId + '_' + id + '.json')
-                                    fetch('https://data.testcod.top/dpacks-3e038.appspot.com/' + dpacks_key + '_' + pageId + '_' + id + '.json')
-                                        .then(response => {
-                                            if (!response.ok) {
-                                                throw new Error("HTTP error " + response.status);
-                                            }
-                                            return response.json();
-                                        })
-                                        .then(json => {
-                                            appendData(json);
-                                        })
-                                        .catch(e => {
-                                            console.log('error: ' + e);
-                                        })
-
-                                } else {
-                                    // other error codes
-                                    console.log('Network status: ' + xhr.status)
-                                }
-                            }
-                        };
+                        // let xhr = new XMLHttpRequest();
+                        // xhr.responseType = 'json';
+                        // xhr.open('GET', 'https://data.testcod.top/dpacks-3e038.appspot.com/' + dpacks_key + '_' + pageId + '_' + id + '.json');
+                        // xhr.send();
+                        // xhr.onload = function (e) {
+                        //     if (xhr.readyState === 4) {
+                        //         if (xhr.status === 400 || xhr.status === 404) {
+                        //             // 404
+                        //             // -- create json file --
+                        //             async function createJSON() {
+                        //
+                        //                 let formDataTest = {
+                        //                     id: id,
+                        //                     page: pageId,
+                        //                     text: curr_text,
+                        //                     attrKey: [],
+                        //                     attrValue: []
+                        //                 }
+                        //
+                        //                 for (let att, j = 0, atts = jsonData[i].attributes, n = atts.length; j < n; j++) {
+                        //                     att = atts[j];
+                        //                     if (att.nodeName !== "id") {
+                        //                         formDataTest.attrKey.push(att.nodeName);
+                        //                         formDataTest.attrValue.push(att.nodeValue);
+                        //                     }
+                        //                 }
+                        //
+                        //                 axios.post(API_URL + '/api/v1/json',
+                        //                     formDataTest, {
+                        //                         headers: authHeader()
+                        //                     }
+                        //                 )
+                        //                     .then(function (response) {
+                        //                         console.log(response);
+                        //                     })
+                        //                     .catch(function (error) {
+                        //                         console.log(error);
+                        //                     });
+                        //             }
+                        //
+                        //             createJSON().then(async r => {
+                        //                 //await location.reload();
+                        //                 console.log(r);
+                        //             }).catch(error => {
+                        //                 console.log(error);
+                        //             });
+                        //
+                        //         } else if (xhr.status === 200) {
+                        //             // 200
+                        //             // append data to webpage
+                        //
+                        //             //axios.get(base_url + '/b2/' + dpacks_key + '_' + pageId + '_' + id + '.json')
+                        //             //fetch(base_url + '/b2/' + dpacks_key + '_' + pageId + '_' + id + '.json')
+                        //             fetch('https://data.testcod.top/dpacks-3e038.appspot.com/' + dpacks_key + '_' + pageId + '_' + id + '.json')
+                        //                 .then(response => {
+                        //                     if (!response.ok) {
+                        //                         throw new Error("HTTP error " + response.status);
+                        //                     }
+                        //                     return response.json();
+                        //                 })
+                        //                 .then(json => {
+                        //                     appendData(json);
+                        //                 })
+                        //                 .catch(e => {
+                        //                     console.log('error: ' + e);
+                        //                 })
+                        //
+                        //         } else {
+                        //             // other error codes
+                        //             console.log('Network status: ' + xhr.status)
+                        //         }
+                        //     }
+                        // };
 
                     } // default start else
 
@@ -723,30 +787,8 @@ function admin() {
 
                 }
             }
-
-            // -- append data from data files (view fetch) - function - end --
-            /*if (i + 1 == jsonData.length && $('#dpacks_style').length > 0) {
-                dPacksClassStylesRemove();
-            }*/
         }
     }
-
-// css style tag append
-    /*function dPacksClassStylesRemove() {
-        let css = '.dpack {color: inherit; min-height: inherit; animation: inherit; background-image: inherit; background-size: inherit; background-position: inherit;}',
-            //let css = '',
-            head = document.head || document.getElementsByTagName('head')[0],
-            style = document.createElement('style');
-        head.appendChild(style);
-        style.type = 'text/css';
-        if (style.styleSheet) {
-            // This is required for IE8 and below.
-            style.styleSheet.cssText = css;
-        } else {
-            style.appendChild(document.createTextNode(css));
-        }
-    }*/
-
 
     // hidden elements list
     let mainBody = document.getElementsByTagName("body")[0];
