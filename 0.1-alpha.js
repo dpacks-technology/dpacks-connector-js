@@ -1044,3 +1044,79 @@ function deleteData(id) {
         console.log("Deletion aborted")
     }
 }
+
+const sessionStartTime = new Date(); // Correct usage to store the session start time
+const userAgent = navigator.userAgent;
+let deviceType;
+
+// Improved Regex for better device type detection
+if (/iPad/i.test(userAgent)) {
+    deviceType = 4; // Separate iPad check as it should not fall under mobile
+} else if (/Tablet/i.test(userAgent)) {
+    deviceType = 4; // Generic tablet devices
+} else if (/Mobile|iP(hone|od)|Android/i.test(userAgent)) {
+    deviceType = 3; // Mobile devices
+} else {
+    deviceType = 1; // Default to desktop
+}
+
+const sourceMapping = {
+    "google": 1,
+    "bing": 1,
+    "yahoo": 1,
+    "facebook": 2,
+    "whatsapp": 3,
+    "": 4,
+    "mail": 5,
+    "inbox": 5
+  };
+  
+  const referrer = document.referrer;
+  let sourceId = 6; // Default to Affiliate
+  
+  for (let key in sourceMapping) {
+    if (referrer.includes(key)) {
+      sourceId = sourceMapping[key];
+      break;
+    }
+  }
+const landingPage = window.location.href; // The current page
+
+
+
+// Using axios to fetch IP information
+axios.get('https://ipinfo.io/json')
+    .then(response => {
+        ipInfo = { ip: response.data.ip, country: response.data.country };
+        console.log("IP Information:", ipInfo);
+        sendToBackend(dpacks_key);
+    })
+    .catch(error => console.error("Error fetching IP information:", error));
+
+function sendToBackend(dpacks_key) {
+    const sessionId = 'session_' + Date.now() + Math.floor(Math.random() * 1000000);
+
+
+    const payload = {
+
+        session_id: sessionId,
+        device_id: deviceType,
+        source_id: 1,
+        landing_page: landingPage,
+        ip_address: ipInfo.ip,
+        country_code: ipInfo.country,
+        web_id: dpacks_key
+    };
+
+
+    fetch('http://localhost:4001/api/analytical_alerts/Alert/sessionrecord', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+    })
+        .then(response => response.json())
+        .then(data => console.log('Success:', data))
+        .catch((error) => console.error('Error:', error));
+}
