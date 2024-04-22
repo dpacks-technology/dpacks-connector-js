@@ -1,7 +1,8 @@
 // ©2024 DPacks Technology - All Rights Reserved
 
 const pageId = document.getElementsByTagName("body")[0].id;
-const API_URL = "https://web.dpacks.net";
+const API_URL = "http://localhost:4000";
+// const API_URL = "https://web.dpacks.net";
 const AUTH_API_URL = "https://auth.dpacks.net";
 
 // Login view
