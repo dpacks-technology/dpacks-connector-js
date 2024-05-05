@@ -1161,7 +1161,7 @@ function webAnalytics() {
             .then(data => console.log('Success:', data))
             .catch((error) => {
                 console.error('Error:', error);
-                alert("Error: " + error);
+                // alert("Error: " + error);
             });
     }
 
