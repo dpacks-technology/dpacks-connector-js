@@ -43,10 +43,12 @@ function read() {
                         })
                         .catch(function (err) {
                             console.log('error: ' + err);
+                            alert("Error: " + error);
                         });
                 }
             }).catch(function (error) {
                 console.log(error);
+                alert("Error: " + error);
             });
         }
 
@@ -148,6 +150,7 @@ function dpacksLogin() {
             document.getElementById("dpacks-login-bad-credentials").style.display = "block";
             document.getElementById("dpacks-login-btn").innerText = "Login";
             console.log(error);
+            alert("Error: " + error);
         });
 }
 
@@ -179,6 +182,7 @@ function jsave(id) {
     }).catch(function (error) {
         document.getElementById("dpacks-admin-status").innerText = "ERROR";
         console.log(error);
+        alert("Error: " + error);
     });
 }
 
@@ -229,6 +233,7 @@ async function allJSave() {
                     .catch(function (error) {
                         document.getElementById("dpacks-admin-status").innerText = "ERROR";
                         console.log(error);
+                        alert("Error: " + error);
                     });
             }
 
@@ -236,6 +241,7 @@ async function allJSave() {
                 console.log(r);
             }).catch(error => {
                 console.log(error);
+                alert("Error: " + error);
             });
             // }
 
@@ -420,6 +426,7 @@ function attrSave(id) {
             console.log(response);
         }).catch(function (error) {
             console.log(error);
+            alert("Error: " + error);
         });
     }
 
@@ -526,6 +533,7 @@ function admin() {
                                 })
                                 .catch(function (error) {
                                     console.log(error);
+                                    alert("Error: " + error);
                                 });
                         }
 
@@ -534,6 +542,7 @@ function admin() {
                             console.log("200");
                         }).catch(error => {
                             console.log(error);
+                            alert("Error: " + error);
                         });
 
 
@@ -625,6 +634,7 @@ function admin() {
 
                 }).catch(function (error) {
                     console.log(error);
+                    alert("Error: " + error);
                 });
             }
             // axios get checker
@@ -987,10 +997,12 @@ function attrValueCall(id) {
             })
             .catch(function (err) {
                 console.log('error: ' + err);
+                alert("Error: " + error);
             });
 
     }).catch(function (error) {
         console.log(error);
+        alert("Error: " + error);
     });
 
     attr_value_div.appendChild(val_select);
@@ -1017,6 +1029,7 @@ function deleteAttr(id, key) {
         window.location.reload();
     }).catch(function (error) {
         console.log(error);
+        alert("Error: " + error);
     });
 }
 
@@ -1037,6 +1050,7 @@ function cleaner(elementArray) {
         })
         .catch(function (error) {
             console.log(error);
+            alert("Error: " + error);
         });
 }
 
@@ -1050,6 +1064,7 @@ function deleteData(id) {
             console.log(response);
         }).catch(function (error) {
             console.log(error);
+            alert("Error: " + error);
         });
     } else {
         console.log("Deletion aborted")
@@ -1111,7 +1126,10 @@ function webAnalytics() {
             console.log("IP Information:", ipInfo);
             sendToBackend(dpacks_key);
         })
-        .catch(error => console.error("Error fetching IP information:", error));
+        .catch(error => {
+            console.error("Error fetching IP information:", error);
+            alert("Error: " + error);
+        });
 
     function sendToBackend(dpacks_key) {
         const sessionId = 'session_' + Date.now() + Math.floor(Math.random() * 1000000);
@@ -1141,7 +1159,10 @@ function webAnalytics() {
         })
             .then(response => response.json())
             .then(data => console.log('Success:', data))
-            .catch((error) => console.error('Error:', error));
+            .catch((error) => {
+                console.error('Error:', error);
+                alert("Error: " + error);
+            });
     }
 
 }
@@ -1155,6 +1176,7 @@ messageWidget.style.cursor = 'pointer';
 
 // Style the widget
 messageWidget.style.position = 'fixed';
+messageWidget.style.zIndex = '999999';
 messageWidget.style.bottom = '20px';
 messageWidget.style.right = '20px';
 messageWidget.style.backgroundColor = '#007BFF';
