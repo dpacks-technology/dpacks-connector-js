@@ -11,51 +11,40 @@ const AUTH_API_URL = "http://localhost:4010";
 const hash = window.location.hash.substr(1);
 const user = JSON.parse(localStorage.getItem('user'));
 
-// dpacks key
-console.log("dpacks: " + dpacks_key);
+// DPacks key
+console.log("Powered by DPacks - Key: " + dpacks_key);
 
-if (user && user.accessToken) {
-    console.log("dpacks: Admin protocol activated");
+// default workflow
+if (user && user.accessToken) { // if admin is logged in
+    console.log("DPacks: Admin protocol activated"); // admin protocol message
     admin();
-} else {
-    read();
+} else { // if admin is not logged in
+    (async () => {
+        await read();
+    })();
 }
 
 // read function
-function read() {
+async function read() {
 
-    // let tagsList = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'div', 'b', 'strong', 'i', 'em', 'mark', 'small', 'del', 'ins', 'sub', 'sup'];
-    let tagsList = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span'];
-    const jsonData = document.querySelectorAll(tagsList);
+    let tagsList = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span']; // supported html tags
+    const jsonData = document.querySelectorAll(tagsList); // extract all supported html tags
+    let ids = Array.from(jsonData).map(el => el.id).filter(id => id !== ''); // extract all ids from supported html tags
 
-    for (let i = 0; i < jsonData.length; i++) {
+    try {
+        let responses = await Promise.all(ids.map(id => axios.get(`${API_URL}/api/v1/data-packets/check/${dpacks_key}/${pageId}/${id}`))); // check if data exists
 
-        // -- id declaration --
-        let id = jsonData[i].id;
+        // fetch data if exists
+        let dataResponses = await Promise
+            .all(responses
+                .filter(response => response.data.exists === 1)
+                .map(response => axios.get(`${API_URL}/api/v1/data-packets/fetch/${dpacks_key}/${pageId}/${response.data.element}`)));
 
-        // check if id exists and not empty
-        if (id !== '') {
-            axios.get(API_URL + `/api/v1/data-packets/check/${dpacks_key}/${pageId}/${id}`).then(function (response) {
-                if (response.data.exists === 1) {
-                    fetch(`${API_URL}/api/v1/data-packets/fetch/${dpacks_key}/${pageId}/${id}`)
-                        .then(function (response) {
-                            return response.json();
-                        })
-                        .then(function (data) {
-                            appendData_read(id, data);
-                        })
-                        .catch(function (err) {
-                            console.log('error: ' + err);
-                            // alert("Error: " + error);
-                        });
-                }
-            }).catch(function (error) {
-                console.log(error);
-                // alert("Error: " + error);
-            });
-        }
+        let data = await Promise.all(dataResponses.map(response => response.data)); // extract data from responses
+        data.forEach(item => appendData_read(item.element, item)); // append data to the view
 
-
+    } catch (error) {
+        console.log('error: ' + error);
     }
 }
 
@@ -71,13 +60,12 @@ function appendData_read(id, data) {
     // -- attributes --
     let atrArray = data.attributes;
 
-    if (atrArray.length !== {}) {
-        Object.keys(atrArray).forEach(key => {
-            mainContainer.removeAttribute(key);
-            mainContainer.setAttribute(key, atrArray[key]);
+    // -- set attributes --
+    if (Object.keys(atrArray).length !== 0) { // if attributes exist
+        Object.keys(atrArray).forEach(key => { // loop through attributes
+            mainContainer.setAttribute(key, atrArray[key]); // set new attributes
         });
     }
-
 }
 
 // DPacks onsite login
