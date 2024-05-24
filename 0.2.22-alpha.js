@@ -11,11 +11,9 @@ const AUTH_API_URL = "http://localhost:4010";
 const hash = window.location.hash.substr(1);
 const user = JSON.parse(localStorage.getItem('user'));
 
-// DPacks key
-console.log("Powered by DPacks - Key: " + dpacks_key);
-
 // default workflow
 if (user && user.accessToken) { // if admin is logged in
+    console.log("Powered by DPacks - Key: " + dpacks_key);
     console.log("DPacks: Admin protocol activated"); // admin protocol message
     admin();
 } else { // if admin is not logged in
@@ -69,44 +67,50 @@ function appendData_read(id, data) {
 }
 
 // DPacks onsite login
-if (hash === "dpacks") {
-    if (user && user.accessToken) {
-
-        // if user is already logged in
-        window.location.href = window.location.href.split('#')[0];
-
-    } else {
-
-        // if user is not logged in
-        let login_div = document.createElement("div");
-        login_div.setAttribute("class", "dpacks_login")
-        login_div.innerHTML =
-            '<div class="con-mid" style="width: 100%; min-height: 100vh;" id="dpacks_login_form">' +
-            '<div class="con-mid dpacks-login-form-style-line">' +
-            '<div class="dpacks_login_box">' +
-            '<img class="dpacks_login_logo" src="https://cdn.jsdelivr.net/gh/dpacks-technology/dpacks-connector-js/dpacks-logo-w.png" alt="logo" />' +
-            '<p class="dpacks_copyright_text" style="color: #fff;">V1.0 - BETA 1</p>' +
-            '<p class="dpacks_copyright_text" style="color: #fff; margin-bottom: 25px;">TECHNICAL PREVIEW</p>' +
-            '<input placeholder="Email" type="text" id="dpacks_login_email">' +
-            '<br/>' +
-            '<input placeholder="Password" type="password" id="dpacks_login_password">' +
-            '<br/>' +
-            '<div id="dpacks-login-bad-credentials" style="display: none; color: #f85149; background-color: #160b0b; border: 1px solid #f85149; margin: 0 10px; font-size: 0.675rem; border-radius: 10px; padding: 10px 20px;">Invalid Credentials</div>' +
-            '<br/>' +
-            '<button onclick="dpacksLogin()" id="dpacks-login-btn">Login</button>' +
-            '<br/>' +
-            '<a href="https://dpacks.space/forgot" class="dpacks_forgot_password">Forgot Password?</a>' +
-            '<div style="width: 100%;" class="con-mid dpacks_login_footer">' +
-            '<p class="dpacks_copyright_text">' +
-            '<span>©' + new Date().getFullYear() + ' DPACKS TECHNOLOGY</span>' +
-            '</strong></p>' +
-            '</div>' +
-            '</div>' +
-            '</div>' +
-            '</div>';
-        document.getElementsByTagName("body")[0].after(login_div);
-
+window.onhashchange = function () {
+    const hash = window.location.hash.substr(1);
+    if (hash === "dpacks") {
+        if (user && user.accessToken) {
+            // if user is already logged in
+            window.location.href = window.location.href.split('#')[0];
+        } else {
+            // if user is not logged in
+            createLoginForm();
+        }
     }
+}
+
+// Call the function immediately to handle the case when the page is loaded with the hash in the URL
+window.onhashchange();
+
+// login form
+function createLoginForm() {
+    let login_div = document.createElement("div");
+    login_div.setAttribute("class", "dpacks_login");
+    login_div.innerHTML = getLoginFormHTML();
+    document.getElementsByTagName("body")[0].after(login_div);
+}
+
+function getLoginFormHTML() {
+    return `
+        <div class="con-mid" style="width: 100%; min-height: 100vh;" id="dpacks_login_form">
+            <div class="con-mid dpacks-login-form-style-line">
+                <div class="dpacks_login_box">
+                    <img class="dpacks_login_logo" src="https://cdn.jsdelivr.net/gh/dpacks-technology/dpacks-connector-js/dpacks-logo-w.png" alt="logo" />
+                    <p class="dpacks_copyright_text" style="color: #fff;">V1.0 - BETA 1</p>
+                    <p class="dpacks_copyright_text" style="color: #fff; margin-bottom: 25px;">TECHNICAL PREVIEW</p>
+                    <input placeholder="Email" type="text" id="dpacks_login_email">
+                    <br/>
+                    <input placeholder="Password" type="password" id="dpacks_login_password">
+                    <br/>
+                    <div id="dpacks-login-bad-credentials" style="display: none; color: #f85149; background-color: #160b0b; border: 1px solid #f85149; margin: 0 10px; font-size: 0.675rem; border-radius: 10px; padding: 10px 20px;">Invalid Credentials</div>
+                    <br/>
+                    <button onclick="dpacksLogin()" id="dpacks-login-btn">Login</button>
+                    <br/>
+                    <a href="https://dpacks.space/forgot" class="dpacks_forgot_password">Forgot Password?</a>
+                </div>
+            </div>
+        </div>`;
 }
 
 // autherization header
