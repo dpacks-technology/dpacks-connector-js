@@ -1,9 +1,65 @@
 // ©2024 DPacks Technology - All Rights Reserved
 
-const pageId = document.getElementsByTagName("body")[0].id;
-// const API_URL = "https://web.dpacks.net";
-// const AUTH_API_URL = "https://auth.dpacks.net";
+// Polyfills and Helper Functions
+(function () {
+    if (!Array.from) {
+        Array.from = function (object) {
+            return [].slice.call(object);
+        };
+    }
 
+    if (!Object.keys) {
+        Object.keys = (function () {
+            const hasOwnProperty = Object.prototype.hasOwnProperty;
+            const hasDontEnumBug = !{toString: null}.propertyIsEnumerable('toString');
+            const dontEnums = [
+                'toString', 'toLocaleString', 'valueOf', 'hasOwnProperty',
+                'isPrototypeOf', 'propertyIsEnumerable', 'constructor'
+            ];
+            const dontEnumsLength = dontEnums.length;
+
+            return function (obj) {
+                if (typeof obj !== 'function' && (typeof obj !== 'object' || obj === null)) {
+                    throw new TypeError('Object.keys called on non-object');
+                }
+
+                let result = [], prop, i;
+
+                for (prop in obj) {
+                    if (hasOwnProperty.call(obj, prop)) {
+                        result.push(prop);
+                    }
+                }
+
+                if (hasDontEnumBug) {
+                    for (i = 0; i < dontEnumsLength; i++) {
+                        if (hasOwnProperty.call(obj, dontEnums[i])) {
+                            result.push(dontEnums[i]);
+                        }
+                    }
+                }
+                return result;
+            };
+        })();
+    }
+
+    if (!Element.prototype.after) {
+        Element.prototype.after = function () {
+            const argArr = Array.prototype.slice.call(arguments);
+            const docFrag = document.createDocumentFragment();
+
+            argArr.forEach(function (argItem) {
+                const isNode = argItem instanceof Node;
+                docFrag.appendChild(isNode ? argItem : document.createTextNode(String(argItem)));
+            });
+
+            this.parentNode.insertBefore(docFrag, this.nextSibling);
+        };
+    }
+})();
+
+// Main Code
+const pageId = document.body.id;
 const API_URL = "http://localhost:4000";
 const AUTH_API_URL = "http://localhost:4010";
 
@@ -11,84 +67,70 @@ const AUTH_API_URL = "http://localhost:4010";
 const hash = window.location.hash.substr(1);
 const user = JSON.parse(localStorage.getItem('user'));
 
-// default workflow
-if (user && user.accessToken) { // if admin is logged in
-    console.log("Powered by DPacks - Key: " + dpacks_key);
-    console.log("DPacks: Admin protocol activated"); // admin protocol message
+// Default workflow
+if (user && user.accessToken) {
+    console.log(`Powered by DPacks - Key: ${dpacks_key}`);
+    console.log("DPacks: Admin protocol activated");
     admin();
-} else { // if admin is not logged in
+} else {
     (async () => {
         await read();
     })();
 }
 
-// read function
-async function read() {
 
-    let tagsList = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span']; // supported html tags
-    const jsonData = document.querySelectorAll(tagsList); // extract all supported html tags
-    let ids = Array.from(jsonData).map(el => el.id).filter(id => id !== ''); // extract all ids from supported html tags
+// ======================== DATA READ SECTION ========================
+async function read() {
+    const tagsList = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span'];
+    const elements = document.querySelectorAll(tagsList);
+    const ids = Array.from(elements).map(el => el.id).filter(id => id !== '');
 
     try {
-        let responses = await Promise.all(ids.map(id => axios.get(`${API_URL}/api/v1/data-packets/check/${dpacks_key}/${pageId}/${id}`))); // check if data exists
+        const responses = await Promise.all(ids.map(id => axios.get(`${API_URL}/api/v1/data-packets/check/${dpacks_key}/${pageId}/${id}`)));
+        const dataResponses = await Promise.all(
+            responses.filter(response => response.data.exists === 1)
+                .map(response => axios.get(`${API_URL}/api/v1/data-packets/fetch/${dpacks_key}/${pageId}/${response.data.element}`))
+        );
 
-        // fetch data if exists
-        let dataResponses = await Promise
-            .all(responses
-                .filter(response => response.data.exists === 1)
-                .map(response => axios.get(`${API_URL}/api/v1/data-packets/fetch/${dpacks_key}/${pageId}/${response.data.element}`)));
-
-        let data = await Promise.all(dataResponses.map(response => response.data)); // extract data from responses
-        data.forEach(item => appendData_read(item.element, item)); // append data to the view
-
+        const data = await Promise.all(dataResponses.map(response => response.data));
+        data.forEach(item => appendData_read(item.element, item));
     } catch (error) {
-        console.log('error: ' + error);
+        console.error('Error:', error);
     }
 }
 
-// -- append data from data files (view fetch) - function --
 function appendData_read(id, data) {
-
-    // -- main container --
-    let mainContainer = document.getElementById(id);
-
-    // -- text --
+    const mainContainer = document.getElementById(id);
     mainContainer.innerText = data.text;
 
-    // -- attributes --
-    let atrArray = data.attributes;
-
-    // -- set attributes --
-    if (Object.keys(atrArray).length !== 0) { // if attributes exist
-        Object.keys(atrArray).forEach(key => { // loop through attributes
-            mainContainer.setAttribute(key, atrArray[key]); // set new attributes
+    const attributes = data.attributes;
+    if (Object.keys(attributes).length) {
+        Object.keys(attributes).forEach(key => {
+            mainContainer.setAttribute(key, attributes[key]);
         });
     }
 }
 
-// DPacks onsite login
+
+// ======================== LOGIN AND AUTHENTICATION SECTION ========================
 window.onhashchange = function () {
     const hash = window.location.hash.substr(1);
     if (hash === "dpacks") {
         if (user && user.accessToken) {
-            // if user is already logged in
             window.location.href = window.location.href.split('#')[0];
         } else {
-            // if user is not logged in
             createLoginForm();
         }
     }
 }
 
-// Call the function immediately to handle the case when the page is loaded with the hash in the URL
-window.onhashchange();
+window.onhashchange(); // Handle initial load with hash
 
-// login form
 function createLoginForm() {
-    let login_div = document.createElement("div");
-    login_div.setAttribute("class", "dpacks_login");
-    login_div.innerHTML = getLoginFormHTML();
-    document.getElementsByTagName("body")[0].after(login_div);
+    const loginDiv = document.createElement("div");
+    loginDiv.className = "dpacks_login";
+    loginDiv.innerHTML = getLoginFormHTML();
+    document.body.after(loginDiv);
 }
 
 function getLoginFormHTML() {
@@ -105,7 +147,7 @@ function getLoginFormHTML() {
                     <br/>
                     <div id="dpacks-login-bad-credentials" style="display: none; color: #f85149; background-color: #160b0b; border: 1px solid #f85149; margin: 0 10px; font-size: 0.675rem; border-radius: 10px; padding: 10px 20px;">Invalid Credentials</div>
                     <br/>
-                    <button onclick="dpacksLogin()" id="dpacks-login-btn">Login</button>
+                    <button onclick="DPacksLogin()" id="dpacks-login-btn">Login</button>
                     <br/>
                     <a href="https://dpacks.space/forgot" class="dpacks_forgot_password">Forgot Password?</a>
                 </div>
@@ -113,139 +155,89 @@ function getLoginFormHTML() {
         </div>`;
 }
 
-// autherization header
 function authHeader() {
-    if (user && user.accessToken) {
-        return {Authorization: 'Bearer ' + user.accessToken}; // for Spring Boot back-end
-        //return { 'x-access-token': user.accessToken };       // for Node.js Express back-end
-    } else {
-        return {};
-    }
+    return user && user.accessToken ? {Authorization: `Bearer ${user.accessToken}`} : {};
 }
 
-// login function
-function dpacksLogin() {
-    document.getElementById("dpacks-login-bad-credentials").style.display = "none";
-    document.getElementById("dpacks-login-btn").innerText = "Loading...";
-    axios.post(AUTH_API_URL + '/api/auth/signin', {
-            email: document.getElementById("dpacks_login_email").value,
-            password: document.getElementById("dpacks_login_password").value
-        }
-    )
-        .then(function (response) {
-            localStorage.setItem("user", JSON.stringify(response.data));
-            window.location.href = window.location.href.split('#')[0];
-            /*if (user) {
-                const decodedJwt = user.accessToken;
-                if (decodedJwt.exp * 1000 < Date.now()) {
-                    //props.logOut();
-                }
-            }*/
-            document.getElementById("dpacks-login-btn").innerText = "Login";
-        })
-        .catch(function (error) {
-            document.getElementById("dpacks-login-bad-credentials").style.display = "block";
-            document.getElementById("dpacks-login-btn").innerText = "Login";
-            console.log(error);
-            // alert("Error: " + error);
+async function DPacksLogin() {
+    const loginButton = document.getElementById("dpacks-login-btn");
+    const badCredentials = document.getElementById("dpacks-login-bad-credentials");
+    const emailField = document.getElementById("dpacks_login_email");
+    const passwordField = document.getElementById("dpacks_login_password");
+
+    if (!emailField.value || !passwordField.value) {
+        badCredentials.style.display = "block";
+        badCredentials.innerText = "Please fill in all fields";
+        return;
+    }
+
+    loginButton.innerText = "Loading...";
+    badCredentials.style.display = "none";
+
+    try {
+        const response = await axios.post(`${AUTH_API_URL}/api/auth/signin`, {
+            email: emailField.value,
+            password: passwordField.value
         });
+
+        localStorage.setItem("user", JSON.stringify(response.data));
+        window.location.href = window.location.href.split('#')[0];
+        loginButton.innerText = "Login";
+    } catch (error) {
+        badCredentials.style.display = "block";
+        loginButton.innerText = "Login";
+        console.error(error);
+        badCredentials.innerText = "An error occurred. Please try again.";
+    }
 }
 
-// logout function
-function dpacksLogOut() {
+function DPacksLogOut() {
     localStorage.removeItem("user");
-    if (window.location.href.slice(-1) === '/') {
-        window.location.href = window.location.href.slice(0, -1);
-    } else {
-        window.location.replace(window.location.href);
-    }
+    window.location.href = window.location.href.endsWith('/') ? window.location.href.slice(0, -1) : window.location.href;
 }
 
 
-// save function
-function jsave(id) {
-    document.getElementById("dpacks-admin-status").innerText = "SAVING...";
-    axios.put(API_URL + `/api/v1/data-packets/${dpacks_id}`, {
-        element: id,
-        page: pageId,
-        key: 'text',
-        //value: $("#text_" + id).val()
-        value: document.getElementById(id).innerText
-    }, {
-        headers: authHeader()
-    }).then(function (response) {
+// ======================== DATA SAVING SECTION ========================
+async function dataPacketSave(id, type) {
+    const statusElement = document.getElementById(type === 'attribute' ? `attr_save_${id}` : "dpacks-admin-status");
+    statusElement.textContent = "Saving...";
+
+    const key = type === 'text' ? 'text' : document.getElementById(`dpacks_attr_key_${id}`).value;
+    const value = type === 'text' ? document.getElementById(id).textContent : document.getElementById(`dpacks_attr_key_value_${id}`).value;
+
+    try {
+        const response = await axios.put(`${API_URL}/api/v1/data-packets/${dpacks_key}`, {
+            element: id,
+            page: pageId,
+            key,
+            value
+        }, {headers: authHeader()});
+
+        statusElement.textContent = "Saved";
+        if (type === 'attribute') window.location.reload();
         console.log(response);
-        document.getElementById("dpacks-admin-status").innerText = "SAVED TO CLOUD";
-    }).catch(function (error) {
-        document.getElementById("dpacks-admin-status").innerText = "ERROR";
-        console.log(error);
-        alert("Error: " + error);
-    });
-}
-
-// save all function
-async function allJSave() {
-    document.getElementById("dpacks-admin-status").innerText = "SAVING...";
-    // -- edit save inner text
-    let tagsList = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
-    const jsonData = document.querySelectorAll(tagsList);
-
-    // cleaner element array init
-    let pageElementArray = [];
-
-    for (let i = 0; i < jsonData.length; i++) {
-
-        // -- id checker
-        if (jsonData[i].hasAttribute('id')) {
-            // -- id declaration --
-            let id = jsonData[i].id;
-
-            // cleaner element array push
-            pageElementArray.push(id);
-
-            // get default data
-            let curr_element = document.getElementById(id);
-            let curr_text = curr_element.innerHTML;
-
-            // -- create json file --
-            async function createJSON() {
-                axios.put(API_URL + `/api/v1/data-packets/${dpacks_key}`, {
-                    element: id,
-                    page: pageId,
-                    key: 'text',
-                    value: curr_text
-                }, {
-                    headers: authHeader()
-                })
-                    .then(function (response) {
-                        document.getElementById("dpacks-admin-status").innerText = "SAVED TO DPACKS";
-                        console.log(response);
-                    })
-                    .catch(function (error) {
-                        document.getElementById("dpacks-admin-status").innerText = "ERROR";
-                        console.log(error);
-                        alert("Error: " + error);
-                    });
-            }
-
-            createJSON().then(async r => {
-                console.log(r);
-            }).catch(error => {
-                console.log(error);
-                alert("Error: " + error);
-            });
-
-        }
-
-        // cleaner element array display
-        if (i === jsonData.length - 1) {
-            await cleaner(pageElementArray);
-            console.log(pageElementArray);
-        }
-
+    } catch (error) {
+        statusElement.textContent = "ERROR";
+        console.error(error);
+        alert(`Error: ${error}`);
     }
 }
 
+async function dataCollectionSave() {
+    const tagsList = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
+    const elements = Array.from(document.querySelectorAll(tagsList));
+    const ids = elements.filter(el => el.hasAttribute('id')).map(el => el.id);
+
+    await Promise.all(ids.map(id => dataPacketSave(id, 'text').catch(error => {
+        console.error(error);
+        alert(`Error: ${error}`);
+    })));
+
+    await cleaner(ids);
+    console.log(ids);
+}
+
+// ======================== ADMIN SECTION ========================
 // admin login and other css
 let css =
         '/*@import url(\'https://fonts.googleapis.com/css2?family=Finger+Paint&display=swap\');*/' + '/*@import url(\'https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+Antique:wght@400;500&display=swap\');*/' + '@font-face {' + 'font-family: \'Zen Kaku Gothic Antique\';' + '    src:  url(\'../fonts/ZenKakuGothicAntique-Regular.ttf\') format(\'ttf\')' + '}' + '@font-face {' + '    font-family: \'Finger Paint\';' + '    src:  url(\'../fonts/FingerPaint-Regular.ttf\') format(\'ttf\')' + '}' + '.con-mid {display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;} ' + '.dpacks_nav_right {right: 0px; position: fixed;}' + '.dpacks_nav_left {left: 0px; position: fixed;}' + '.dpacks_nav_content {width: 280px; background-color: #000A2A; border: 2px solid #737DFF; height: 38px; border-radius: 10px; display: inline-block; box-shadow: 0px 9px 20px 2px #00000075;}' + '@media screen and (max-width: 420px) {.dpacks_nav_logo{display: none;}}' + '.dpacks_nav_content_a {text-decoration: none; margin: 0px 5px; width: 40px; height: 31px; margin-top: 6px; display: inline-block; font-family: \'Finger Paint\', \'Zen Kaku Gothic Antique\', sans-serif; font-weight: 500; background-color: transparent; color: #fff;}' + '.dpacks_nav_content_a:hover {text-decoration: none; background-color: #737DFF; border-top-right-radius: 7px; border-top-left-radius: 7px;} ' +
@@ -392,35 +384,6 @@ if (style.styleSheet) {
     style.appendChild(document.createTextNode(css));
 }
 
-// attribute save
-function attrSave(id) {
-
-    document.getElementById("attr_save_" + id).innerText = "Saving...";
-
-    function attrSavingAjax() {
-        axios.put(API_URL + `/api/v1/data-packets/${dpacks_key}`, {
-
-            element: id,
-            page: pageId,
-            key: $("#dpacks_attr_key_" + id).val(),
-            value: $("#dpacks_attr_key_value_" + id).val()
-
-        }, {
-            headers: authHeader()
-        }).then(function (response) {
-            document.getElementById("attr_save_" + id).innerText = "Saved";
-            window.location.reload();
-            console.log(response);
-        }).catch(function (error) {
-            console.log(error);
-            alert("Error: " + error);
-        });
-    }
-
-    attrSavingAjax();
-
-}
-
 // admin view
 function admin() {
 
@@ -433,10 +396,10 @@ function admin() {
 
     div.innerHTML =
         '<div class=\"dpacks_nav_content con-mid\">' +
-        '<span style=\"cursor: pointer\" class=\"dpacks_nav_content_a con-mid\" onclick=\"allJSave()\">💾</span>' +
+        '<span style=\"cursor: pointer\" class=\"dpacks_nav_content_a con-mid\" onclick=\"dataCollectionSave()\">💾</span>' +
         '<a class=\"dpacks_nav_content_a con-mid\" href=\"./\">🛠</a>' +
         '<span style=\"cursor: pointer\" class=\"dpacks_nav_content_a con-mid\" onclick=\"hiddenElementsList()\">🙈</span>' +
-        '<a class=\"dpacks_nav_content_a con-mid\" href=\"./\" onclick="dpacksLogOut()">👋️</a>' +
+        '<a class=\"dpacks_nav_content_a con-mid\" href=\"./\" onclick="DPacksLogOut()">👋️</a>' +
         '</div>';
 
     let div2 = document.createElement("div");
@@ -583,7 +546,7 @@ function admin() {
                     let btn3 = document.createElement("button");
 
                     //btn.setAttribute("onClick", "jDataModel(\'" + id + "\')");
-                    btn.setAttribute("onClick", "jsave(\'" + String(id) + "\')");
+                    btn.setAttribute("onClick", "dataPacketSave(\'" + String(id) + "\')");
                     btn1.setAttribute("onClick", "jDataModel(\'" + id + "\')");
                     btn2.setAttribute("onClick", "deleteData(\'" + id + "\')");
                     btn3.setAttribute("oncontextmenu", "attrModel(\'" + id + "\'); attrValueCall(\'" + id + "\');");
@@ -607,11 +570,11 @@ function admin() {
                     }
 
                     function jDataCloseModel_func(jDataCloseModel_type) {
-                        div2.innerHTML = '<div class=\"dpacks_modal_inner\"><button class="dpacks-button dpacks-close-button" onClick="' + jDataCloseModel_type + '(\'' + String(id) + '\')">Back</button><br><span class=\"dpacks_modal_topics\">Edit content<br><span class=\"modal_element_page_id\"><span style=\"color: #97aeff\">Page ID: </span>' + String(pageId) + ', <span style=\"color: #97aeff\">Element ID: </span>' + String(id) + '<br></span></span>' + '<br><textarea style="font-family: Zen Kaku Gothic Antique, sans-serif;" id="text_' + String(id) + '">' + String(data.text) + '</textarea><br><button class="dpacks-button dpacks-save-button" onclick="jsave(\'' + String(id) + '\')">Save</button></div>';
+                        div2.innerHTML = '<div class=\"dpacks_modal_inner\"><button class="dpacks-button dpacks-close-button" onClick="' + jDataCloseModel_type + '(\'' + String(id) + '\')">Back</button><br><span class=\"dpacks_modal_topics\">Edit content<br><span class=\"modal_element_page_id\"><span style=\"color: #97aeff\">Page ID: </span>' + String(pageId) + ', <span style=\"color: #97aeff\">Element ID: </span>' + String(id) + '<br></span></span>' + '<br><textarea style="font-family: Zen Kaku Gothic Antique, sans-serif;" id="text_' + String(id) + '">' + String(data.text) + '</textarea><br><button class="dpacks-button dpacks-save-button" onclick="dataPacketSave(\'' + String(id) + '\', \'text\')">Save</button></div>';
                     }
 
                     function attrCloseModel_func(attrCloseModel_type) {
-                        div3.innerHTML = '<div class=\"dpacks_modal_inner\">' + '<button class="dpacks-button dpacks-close-button" onClick="' + attrCloseModel_type + '(\'' + String(id) + '\')">Back</button><br><span class=\"dpacks_modal_topics\">Edit attributes<br><span class=\"modal_element_page_id\"><span style=\"color: #97aeff\">Page ID: </span>' + String(pageId) + ', <span style=\"color: #97aeff\">Element ID: </span>' + String(id) + '</span></span>' + '<div id=\"dpack_data_attr_' + id + '\"></div>' + '<br>' + '<div class=\"dpacks_modal_topics\" id="dpacks_modal_topics" style="display: none;"></div>' + '<div id=\"dpacks_attr_div_' + id + '\"></div>' + '<hr style="border-color: #414796;"/><br/>' + '<div id=\"add-new-attr\" style=\"font-family: Zen Kaku Gothic Antique, sans-serif;\">' + 'Add New / Update' + '<br /><br />' + '<input placeholder=\"Attribute name\" style=\"width: 280px;" id=\"dpacks_attr_key_' + id + '\">' + '<br />' + '<textarea placeholder=\"Attribute value\" style=\"max-width: 280px; min-width: 280px; font-family: Zen Kaku Gothic Antique, sans-serif; min-height: 70px; height: 70px;\" id=\"dpacks_attr_key_value_' + id + '\"></textarea>' + '<br><button class="dpacks-button dpacks-save-button" onclick="attrSave(\'' + String(id) + '\')" id="attr_save_' + id + '">Save</button>' + '</div>' + '</div>' + '<br/><br/><br/>';
+                        div3.innerHTML = '<div class=\"dpacks_modal_inner\">' + '<button class="dpacks-button dpacks-close-button" onClick="' + attrCloseModel_type + '(\'' + String(id) + '\')">Back</button><br><span class=\"dpacks_modal_topics\">Edit attributes<br><span class=\"modal_element_page_id\"><span style=\"color: #97aeff\">Page ID: </span>' + String(pageId) + ', <span style=\"color: #97aeff\">Element ID: </span>' + String(id) + '</span></span>' + '<div id=\"dpack_data_attr_' + id + '\"></div>' + '<br>' + '<div class=\"dpacks_modal_topics\" id="dpacks_modal_topics" style="display: none;"></div>' + '<div id=\"dpacks_attr_div_' + id + '\"></div>' + '<hr style="border-color: #414796;"/><br/>' + '<div id=\"add-new-attr\" style=\"font-family: Zen Kaku Gothic Antique, sans-serif;\">' + 'Add New / Update' + '<br /><br />' + '<input placeholder=\"Attribute name\" style=\"width: 280px;" id=\"dpacks_attr_key_' + id + '\">' + '<br />' + '<textarea placeholder=\"Attribute value\" style=\"max-width: 280px; min-width: 280px; font-family: Zen Kaku Gothic Antique, sans-serif; min-height: 70px; height: 70px;\" id=\"dpacks_attr_key_value_' + id + '\"></textarea>' + '<br><button class="dpacks-button dpacks-save-button" onclick="dataPacketSave(\'' + String(id) + '\', \'attribute\')" id="attr_save_' + id + '">Save</button>' + '</div>' + '</div>' + '<br/><br/><br/>';
                     }
 
                     mainContainer.after(div);
@@ -675,7 +638,6 @@ function admin() {
         "</div>";
     mainBody.appendChild(hidden_div);
     let dpacks_hiddenList_ul_element = document.getElementById("dpacks_hiddenList_ul_element");
-
 
 }
 
@@ -896,11 +858,14 @@ function attrValueCall(id) {
     attr_value_div.appendChild(val_select);
 }
 
+// ======================== ATTRIBUTE MANIPULATION SECTION ========================
+// update attribute
 function updateAttr(id, key, value) {
     document.getElementById("dpacks_attr_key_" + id).value = key;
     document.getElementById("dpacks_attr_key_value_" + id).value = value;
 }
 
+// delete attribute
 function deleteAttr(id, key) {
     document.getElementById("delete_btn_" + id + "_" + key).innerText = "Deleting..."
     axios.put(API_URL + `/api/v1/data-packets/single-key-remove/${dpacks_key}`, {
@@ -921,6 +886,7 @@ function deleteAttr(id, key) {
     });
 }
 
+// ======================== CLEANER SECTION ========================
 // -- Cleaner --
 function cleaner(elementArray) {
     let formDataTest = {
